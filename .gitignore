@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+
+# Node
+node_modules/
+dist/
+*.local
+
+# .NET build output
+bin/
+obj/
+
+# Local env / secrets (use docker/.env.example as the template)
+.env
+docker/.env
+
+# Deck working files
+slides/index.backup-*.html
+slides 2/
+slides 2.zip
+*.zip
+
+# Tooling
+.playwright-mcp/

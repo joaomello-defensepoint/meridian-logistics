@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Do you actually know what your AI is doing? — João · DefensePoint</title>
+<style>
+  :root{
+    --bg:#0d1117;
+    --bg2:#111826;
+    --panel:#161b22;
+    --panel2:#1c2330;
+    --border:#283040;
+    --text:#e6edf3;
+    --muted:#8b98a9;
+    --faint:#5b6675;
+    --accent:#22d3ee;
+    --accent2:#38bdf8;
+    --good:#3fb950;
+    --warn:#d29922;
+    --bad:#f85149;
+    --slide-w:1280px;
+    --slide-h:720px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  #stage{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(34,211,238,0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(56,189,248,0.06), transparent 60%),
+      var(--bg);
+  }
+  #scaler{
+    width:var(--slide-w);
+    height:var(--slide-h);
+    transform-origin:center center;
+    position:relative;
+  }
+  .slide{
+    position:absolute;
+    inset:0;
+    width:var(--slide-w);
+    height:var(--slide-h);
+    padding:72px 88px;
+    display:none;
+    flex-direction:column;
+    opacity:0;
+    transform:translateY(14px);
+    transition:opacity .36s ease, transform .36s ease;
+  }
+  .slide.active{display:flex;opacity:1;transform:translateY(0)}
+
+  h1{font-size:72px;line-height:1.04;letter-spacing:-0.02em;font-weight:800}
+  h2{font-size:46px;line-height:1.08;letter-spacing:-0.015em;font-weight:750;margin-bottom:8px}
+  h2 .dot{color:var(--accent)}
+  .kicker{
+    font-size:16px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent);font-weight:700;margin-bottom:18px;
+  }
+  .lead{font-size:28px;color:var(--muted);line-height:1.4;max-width:70ch;margin-top:10px}
+  .rule{height:4px;width:76px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;margin:14px 0 30px}
+  p{font-size:24px;line-height:1.5;color:var(--text)}
+  .sub{color:var(--muted)}
+
+  ul.big{list-style:none;margin-top:14px}
+  ul.big li{
+    font-size:27px;line-height:1.38;color:var(--text);
+    padding:14px 0 14px 44px;position:relative;
+    border-bottom:1px solid rgba(40,48,64,.5);
+  }
+  ul.big li:last-child{border-bottom:none}
+  ul.big li::before{
+    content:"";position:absolute;left:6px;top:24px;
+    width:12px;height:12px;border-radius:3px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 0 12px rgba(34,211,238,.5);
+  }
+  ul.big li b{color:#fff;font-weight:700}
+  ul.big li .m{color:var(--muted)}
+
+  /* provocation list — question marks instead of dots */
+  ul.ask{list-style:none;margin-top:18px}
+  ul.ask li{
+    font-size:30px;line-height:1.34;color:var(--text);
+    padding:18px 0 18px 58px;position:relative;
+    border-bottom:1px solid rgba(40,48,64,.5);
+  }
+  ul.ask li:last-child{border-bottom:none}
+  ul.ask li::before{
+    content:"?";position:absolute;left:0;top:14px;
+    width:38px;height:38px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--panel2);border:1px solid var(--bad);color:var(--bad);
+    font-weight:900;font-size:22px;
+  }
+  ul.ask li b{color:#fff;font-weight:800}
+  ul.ask li .m{color:var(--muted)}
+
+  .fill{flex:1}
+  .center{justify-content:center;align-items:flex-start}
+
+  /* title slide */
+  .title-wrap{display:flex;flex-direction:column;justify-content:center;height:100%}
+  .title-wrap .eyebrow{font-size:18px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:26px}
+  .title-wrap h1 .g{background:linear-gradient(120deg,#fff 10%,var(--accent) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .title-wrap .subtitle{font-size:28px;color:var(--muted);margin-top:28px;font-weight:500}
+  .title-wrap .byline{font-size:20px;color:var(--faint);margin-top:40px;letter-spacing:.02em}
+  .title-wrap .byline b{color:var(--text)}
+
+  /* section divider */
+  .part{display:flex;flex-direction:column;justify-content:center;height:100%}
+  .part .pk{font-size:20px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .part h1{font-size:84px;margin-top:16px}
+  .part h1 .g{background:linear-gradient(120deg,#fff 10%,var(--accent) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .part .psub{font-size:30px;color:var(--muted);margin-top:20px;max-width:62ch;line-height:1.35}
+  .part .ptag{font-size:17px;color:var(--faint);margin-top:30px;letter-spacing:.04em}
+  .part .ptag b{color:var(--accent)}
+
+  /* cards / grids */
+  .grid{display:grid;gap:18px;margin-top:10px}
+  .grid.c2{grid-template-columns:1fr 1fr}
+  .grid.c3{grid-template-columns:repeat(3,1fr)}
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--border);border-radius:14px;padding:22px 24px;
+  }
+  .card h3{font-size:22px;color:#fff;margin-bottom:8px;font-weight:700}
+  .card h3 .tag{color:var(--accent);font-size:15px;font-weight:700;letter-spacing:.05em}
+  .card p{font-size:18px;color:var(--muted);line-height:1.42}
+
+  /* chain / concepts */
+  .chain{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap;margin-top:12px}
+  .node{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:16px 20px;min-width:150px;
+  }
+  .node .t{font-size:21px;font-weight:700;color:#fff}
+  .node .d{font-size:15px;color:var(--muted);margin-top:4px;line-height:1.35}
+  .arrow{display:flex;align-items:center;color:var(--accent);font-size:28px;font-weight:700}
+  .pills{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+  .pill{background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:10px 18px;font-size:18px;color:var(--text)}
+  .pill b{color:var(--accent)}
+
+  /* maturity ladder (the spine) */
+  .ladder{display:flex;align-items:stretch;gap:10px;margin-top:20px;position:relative}
+  .rung{
+    flex:1;background:var(--panel);border:1px solid var(--border);
+    border-top:3px solid var(--rc,var(--border));border-radius:12px;padding:16px 16px 18px;
+  }
+  .rung .when{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--rc,var(--muted));font-weight:800}
+  .rung .what{font-size:20px;font-weight:700;color:#fff;margin-top:9px;line-height:1.18}
+  .rung .note{font-size:14px;color:var(--muted);margin-top:7px;line-height:1.32}
+  .axis{position:relative;height:36px;margin-top:22px;border-radius:999px;
+    background:linear-gradient(90deg,var(--bad),var(--warn) 42%,var(--accent) 74%,var(--good));opacity:.9}
+  .axis .lab{position:absolute;top:9px;font-size:14px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#07101a}
+  .axis .l{left:18px}.axis .r{right:18px}
+  /* the dashed "what observability buys us" box over the last 3 rungs */
+  .buys{position:absolute;left:39.8%;right:-10px;top:-16px;bottom:-16px;
+    border:2px dashed var(--accent);border-radius:16px;pointer-events:none;
+    background:rgba(34,211,238,0.05)}
+  .buys .bl{position:absolute;top:0;left:24px;transform:translateY(-50%);
+    background:var(--bg);color:var(--accent);border:1px solid var(--accent);
+    border-radius:999px;padding:5px 14px;font-size:16px;font-weight:800;
+    letter-spacing:.03em;white-space:nowrap}
+
+  /* fragments — revealed one click at a time */
+  .fragment{opacity:0;transition:opacity .4s ease}
+  .fragment.shown{opacity:1}
+
+  /* brand comparison header (Datadog vs Langfuse) */
+  th.bh{text-transform:none;color:var(--text);font-size:inherit;letter-spacing:normal;padding-bottom:18px;width:34%}
+  .brandcell{display:flex;align-items:center;gap:11px}
+  .logo{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;flex:none}
+  .brandname{font-size:22px;font-weight:800;color:#fff;line-height:1.05}
+  .brandsub{display:block;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;margin-top:3px;text-transform:none}
+
+  /* table */
+  table{border-collapse:collapse;width:100%;margin-top:14px;font-size:19px}
+  th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--accent);font-size:15px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+  td.feat{color:var(--muted);font-weight:600;width:28%}
+  td b{color:#fff}
+  .yes{color:var(--good);font-weight:700}
+  .no{color:var(--bad);font-weight:700}
+  .warnc{color:var(--warn);font-weight:700}
+
+  /* code slides */
+  pre{
+    background:#0a0e14;border:1px solid var(--border);border-radius:14px;
+    padding:26px 30px;margin-top:14px;overflow:hidden;
+    font-family:"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    font-size:19px;line-height:1.5;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  pre.tree{font-size:21px;line-height:1.6}
+  pre .cmt{color:#5b6675;font-style:italic}
+  pre .kw{color:#ff7b72}
+  pre .ty{color:#79c0ff}
+  pre .str{color:#a5d6ff}
+  pre .fn{color:#d2a8ff}
+  pre .at{color:#ffa657}
+  pre .pn{color:var(--accent)}
+  pre .pl{color:#c9d1d9}
+  pre .gen{color:var(--accent)}
+  pre .span{color:var(--muted)}
+  pre .cost{color:var(--good)}
+  pre .muted{color:var(--faint)}
+  .takeaway-code{font-size:17px;color:var(--muted);margin-top:16px}
+
+  /* architecture diagram */
+  .arch{margin-top:8px}
+  .arch .row{display:flex;align-items:center;gap:16px;margin:10px 0;flex-wrap:wrap}
+  .box{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px 18px;font-size:18px;min-width:130px;
+  }
+  .box .bt{font-weight:700;color:#fff;font-size:19px}
+  .box .bs{color:var(--muted);font-size:14px;margin-top:3px}
+  .box.accent{border-color:var(--accent);box-shadow:0 0 0 1px rgba(34,211,238,.25) inset}
+  .box.local{border-color:#2d6a4f}
+  .conn{color:var(--accent);font-size:22px;font-weight:700}
+  .obs{background:var(--panel2);border:1px dashed var(--accent);border-radius:12px;padding:12px 16px;font-size:17px}
+  .obs b{color:var(--accent)}
+
+  /* demo / section big type */
+  .demo-big{
+    font-size:150px;font-weight:900;letter-spacing:.06em;
+    background:linear-gradient(120deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    line-height:1;margin:0 0 18px;
+  }
+  .answers{font-size:18px;color:var(--good);font-weight:700;margin-top:18px}
+  .answers .q{color:var(--muted);font-weight:500}
+
+  .links{margin-top:22px;display:flex;flex-direction:column;gap:8px}
+  .links a,.links span{color:var(--accent2);font-size:20px;font-family:"SF Mono",Menlo,monospace;text-decoration:none}
+  .thanks{font-size:40px;font-weight:800;margin-top:26px}
+
+  /* chrome */
+  #counter{
+    position:fixed;right:22px;bottom:16px;z-index:20;
+    font-size:15px;color:var(--muted);letter-spacing:.08em;
+    font-variant-numeric:tabular-nums;
+    background:rgba(13,17,23,.7);padding:6px 12px;border-radius:8px;border:1px solid var(--border);
+  }
+  #progress{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:21;transition:width .3s ease}
+  #hint{
+    position:fixed;left:22px;bottom:16px;z-index:20;font-size:13px;color:var(--faint);
+    background:rgba(13,17,23,.6);padding:6px 12px;border-radius:8px;border:1px solid var(--border);
+    transition:opacity .5s ease;
+  }
+  #notes{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    max-height:42%;overflow:auto;
+    background:rgba(8,11,16,.96);border-top:2px solid var(--accent);
+    padding:22px 40px;display:none;
+    box-shadow:0 -20px 60px rgba(0,0,0,.6);
+  }
+  #notes.show{display:block}
+  #notes .nh{font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:10px}
+  #notes .nbody{font-size:21px;line-height:1.5;color:var(--text);max-width:90ch}
+  aside.notes{display:none}
+
+  /* agenda two-block */
+  .col-head{font-size:15px;letter-spacing:.18em;text-transform:uppercase;font-weight:800;margin-bottom:4px}
+  .ptile{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:21px;font-weight:700;color:#fff;margin-top:10px}
+  .ptile .s{display:block;font-size:14px;font-weight:600;color:var(--muted);margin-top:3px}
+  /* slide 6: the reactive→proactive bar wipes in left→right over 2s on the final click */
+  .axis-reveal{opacity:1 !important;clip-path:inset(0 100% 0 0);transition:clip-path 2s ease}
+  .axis-reveal.shown{clip-path:inset(0 0 0 0)}
+  /* icon cards */
+  .ic{font-size:34px;line-height:1;margin-bottom:10px}
+  /* screenshot springboard */
+  .shot{display:flex;flex-direction:column;align-items:center;margin-top:6px}
+  .shot img{max-height:400px;max-width:100%;width:auto;border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  .livecue{display:inline-flex;align-items:center;gap:10px;margin-top:16px;background:var(--panel2);border:1px solid var(--accent);border-radius:999px;padding:9px 18px;font-size:19px;font-weight:700;color:var(--accent)}
+  /* qr final */
+  .qrwrap{display:flex;align-items:center;gap:46px;margin-top:24px}
+  .qrbox{background:#fff;padding:16px;border-radius:16px;flex:none}
+  .qrbox img{display:block;width:250px;height:250px;image-rendering:pixelated}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="stage">
+  <div id="scaler">
+
+    <!-- 1 TITLE -->
+    <section class="slide">
+      <div class="title-wrap">
+        <div class="eyebrow">DefensePoint · AI Engineering University</div>
+        <h1 style="font-size:64px"><span class="g">Do you actually know<br>what your AI is doing?</span></h1>
+        <div class="subtitle">AI observability with Langfuse</div>
+        <div class="byline"><b>João</b> · November 2026</div>
+      </div>
+      <aside class="notes">[~0:30] Open on the question — let it hang for a beat before clicking. Timing is flexible: this runs as one ~35-min talk, or splits cleanly into two at the "Part 1 / Part 2" dividers, or stretches to 45 by doing evals + prompt management live. The spine of the whole thing: today your feedback loop on AI is late and accidental; we're going to make it early and deliberate.</aside>
+    </section>
+
+    <!-- 2 THE PROVOCATION -->
+    <section class="slide">
+      <div class="kicker">The Provocation</div>
+      <h2>AI features &amp; agents are everywhere now.</h2>
+      <div class="rule"></div>
+      <p class="sub" style="margin-bottom:6px">Once it's live and talking to your customers —</p>
+      <ul class="ask">
+        <li>Do you find out it's <b>expensive</b> <span class="m">from the month-end bill?</span></li>
+        <li>Do you find out it's <b>wrong</b> <span class="m">from a customer complaint?</span></li>
+        <li>Do you find out it's <b>broken</b> <span class="m">from… nothing at all?</span></li>
+      </ul>
+      <aside class="notes">[~1:45] This is the slide that should make people shift in their seats. The point isn't "AI is risky" — it's that today the signal arrives weeks late and by accident: a bill, a complaint, or silence. Don't answer the questions yet. Say: "hold these three — we'll answer every one of them, live, before the end." That promise is what carries the talk.</aside>
+    </section>
+
+    <!-- 3 THE GAP -->
+    <section class="slide">
+      <div class="kicker">The Gap</div>
+      <h2>Your API returns <span class="dot">200 OK</span> — and the answer is wrong.</h2>
+      <div class="rule"></div>
+      <ul class="big">
+        <li class="fragment"><b>Hallucinations</b></li>
+        <li class="fragment"><b>Bad tool calls</b></li>
+        <li class="fragment"><b>Prompt regressions</b></li>
+        <li class="fragment"><b>Cost blow-ups &amp; latency</b></li>
+      </ul>
+      <p class="sub fragment" style="margin-top:24px">Classic APM sees the HTTP 200. It sees none of this.</p>
+      <aside class="notes">[~3:00] Why the signal is missing: traditional monitoring was built for deterministic request/response. A support bot that confidently invents a refund policy still returns 200, 50 ms, zero errors. The failure is semantic, inside the generated answer — exactly where status codes and CPU graphs can't look. That blind spot is what LLM observability fills.</aside>
+    </section>
+
+    <!-- 3b NEW · APM vs AI OBSERVABILITY -->
+    <section class="slide">
+      <div class="kicker">A Fair Question</div>
+      <h2>Why not just use Datadog?</h2>
+      <div class="rule"></div>
+      <table>
+        <tr>
+          <th></th>
+          <th class="bh"><div class="brandcell"><span class="logo" style="background:#632CA6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14h3l2.5-8 3.5 14 2.5-7 1.5 3H22"/></svg></span><span><span class="brandname">Datadog</span><span class="brandsub">modern APM</span></span></div></th>
+          <th class="bh"><div class="brandcell"><span class="logo" style="background:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="#06252b" stroke="#06252b" stroke-width="2"><line x1="6" y1="5" x2="6" y2="18"/><line x1="6" y1="8" x2="13" y2="8"/><line x1="6" y1="15" x2="13" y2="15"/><circle cx="6" cy="4.8" r="2.3"/><circle cx="15" cy="8" r="2.3"/><circle cx="15" cy="15" r="2.3"/></svg></span><span><span class="brandname">Langfuse</span><span class="brandsub">AI observability</span></span></div></th>
+        </tr>
+        <tr class="fragment"><td class="feat">Built for</td><td>apps, infra &amp; services</td><td><b>LLM features &amp; agents</b></td></tr>
+        <tr class="fragment"><td class="feat">A "trace" is…</td><td>HTTP / DB / function spans</td><td><b>prompts, completions, tool calls</b></td></tr>
+        <tr class="fragment"><td class="feat">Core signals</td><td>latency, errors, throughput</td><td><b>tokens, cost, quality</b></td></tr>
+        <tr class="fragment"><td class="feat">Quality &amp; feedback</td><td>not its focus</td><td><b>evals + user feedback, built in</b></td></tr>
+        <tr class="fragment"><td class="feat">How you run it</td><td>commercial SaaS</td><td><b>open-source, self-hostable</b></td></tr>
+      </table>
+      <p class="sub fragment" style="margin-top:18px;font-size:19px">Both speak OpenTelemetry — and Datadog now has an LLM add-on. But Langfuse was built for this. And it's open source.</p>
+      <aside class="notes">[~3:45] The calm, grounding beat — answer the objection everyone's thinking: "we already pay for Datadog." Both are great; they just answer different questions. APM traces stop at the API boundary (latency, errors, the HTTP span); Langfuse sees *inside* the call — the prompt, the completion, the tokens, the tool steps, and the quality. Be honest with the last line: Datadog has an LLM Observability add-on and both speak OTel, so this isn't "APM bad" — it's "purpose-built vs bolted-on." Don't rush; let the table sit. — If pushed ("Datadog has LLM obs now"): agree, then what it lacks vs Langfuse — (1) open-source / self-host, (2) prompt management, (3) playground, (4) dataset evals.</aside>
+    </section>
+
+    <!-- 4 THE SPINE (maturity ladder) -->
+    <section class="slide">
+      <div class="kicker">The Spine</div>
+      <h2>Move the moment you find out — <span class="dot">earlier</span></h2>
+      <div class="rule"></div>
+      <div class="ladder">
+        <div class="rung fragment" style="--rc:var(--bad)"><div class="when">Weeks late</div><div class="what">Month-end bill</div><div class="note">cost, after you've already spent it</div></div>
+        <div class="rung fragment" style="--rc:var(--warn)"><div class="when">Hours late</div><div class="what">Log grep</div><div class="note">if you even kept the right logs</div></div>
+        <div class="rung fragment" style="--rc:var(--accent)"><div class="when">Live</div><div class="what">Traces &amp; dashboards</div><div class="note">watch every step as it happens</div></div>
+        <div class="rung fragment" style="--rc:var(--accent2)"><div class="when">Per answer</div><div class="what">User feedback</div><div class="note">the complaint becomes a data point</div></div>
+        <div class="rung fragment" style="--rc:var(--good)"><div class="when">Before you ship</div><div class="what">Evals &amp; datasets</div><div class="note">catch the regression in CI, not prod</div></div>
+        <div class="buys fragment"><span class="bl">This is what AI observability buys us</span></div>
+      </div>
+      <div class="axis"><span class="lab l">Reactive</span><span class="lab r">Proactive</span></div>
+      <aside class="notes">[~4:30] This slide BUILDS — click through it. Start with the axis alone: a spectrum from reactive to proactive. Then reveal each stage with a click — month-end bill (weeks late) → log grep → traces &amp; dashboards → user feedback → evals (before you ship). The final click drops a dashed box around the last three: "this is what AI observability buys us" — the jump from finding out by accident to catching it on purpose. The three questions from slide 2 live on the left (bill, complaint, silence); the answers are the three boxed tiles. Point back here between demo sections. (Going backward or deep-linking shows the finished slide.)</aside>
+    </section>
+
+    <!-- 6 AGENDA -->
+    <section class="slide">
+      <div class="kicker">What We'll Cover</div>
+      <h2>Today the foundation. Next time, the rest.</h2>
+      <div class="rule"></div>
+      <div class="grid c2">
+        <div class="card" style="border-color:var(--accent)">
+          <div class="col-head" style="color:var(--accent)">Today</div>
+          <div class="ptile">Traces <span class="s">every step of a request</span></div>
+          <div class="ptile">Sessions <span class="s">the whole conversation</span></div>
+          <div class="ptile">Users <span class="s">who it happened to</span></div>
+        </div>
+        <div class="card">
+          <div class="col-head" style="color:var(--muted)">Follow up</div>
+          <div class="ptile" style="opacity:.72">Alerts <span class="s">know the moment it breaks</span></div>
+          <div class="ptile" style="opacity:.72">Prompt management <span class="s">versioned, measured changes</span></div>
+          <div class="ptile" style="opacity:.72">Evaluation <span class="s">quality &amp; feedback, before you ship</span></div>
+        </div>
+      </div>
+      <div class="axis axis-reveal fragment" style="margin-top:30px"><span class="lab l">Reactive</span><span class="lab r">Proactive</span></div>
+      <aside class="notes">[~6:00] Set expectations and keep it calm. Today is the foundation of the observability chain: Traces, Sessions, Users &mdash; just seeing clearly. The harder, higher rungs (alerts, prompt management, evaluation with feedback) are a whole talk of their own, so we're deliberately saving them. Both blocks are on screen from the start; say "today we do this, then this, so we really walk from a reactive to a proactive workflow" &mdash; then click once to wipe in the reactive→proactive bar (2s, left→right).</aside>
+    </section>
+
+    <!-- 7 DEMO COMPANY -->
+    <section class="slide">
+      <div class="kicker">Demo Time</div>
+      <h2>Meet Meridian Logistics</h2>
+      <div class="rule"></div>
+      <p class="lead">A (fictional) logistics company &mdash; with two AI features its customers actually touch:</p>
+      <div class="grid c2" style="margin-top:24px">
+        <div class="card"><div class="ic">&#128172;</div><h3>Support chatbot</h3><p>Answers questions about services, delivery, and hours.</p></div>
+        <div class="card"><div class="ic">&#129302;</div><h3>Operations agent</h3><p>Performs more complex logistics operations.</p></div>
+      </div>
+      <aside class="notes">[~7:00] Ground the demo in something concrete and relatable &mdash; a logistics company. Two features, two shapes of AI: a plain chatbot (just answers) and an agent (takes actions via tools). Everyone has built or will build one of these. Keep it short; the real thing is coming up live.</aside>
+    </section>
+
+    <!-- 8 SETUP -->
+    <section class="slide">
+      <div class="kicker">The Setup</div>
+      <h2>It all runs on this laptop</h2>
+      <div class="rule"></div>
+      <div class="grid c2">
+        <div class="card"><div class="ic">&#129504;</div><h3>LLM runs locally</h3><p>Ollama + a small open model.</p></div>
+        <div class="card"><div class="ic">&#128451;</div><h3>Company data</h3><p>Shipments, quotes &amp; pickups live in the app.</p></div>
+        <div class="card"><div class="ic">&#9883;</div><h3>App: React + API</h3><p>Customer UI and API.</p></div>
+        <div class="card"><div class="ic">&#128051;</div><h3>Langfuse self-hosted</h3><p>One docker compose.</p></div>
+      </div>
+      <aside class="notes">[~8:00] Reassure the skeptics: this is genuinely self-contained. Local model (so it's private and free), the company data is just the app's own store, the front-end and API start together, and Langfuse runs in Docker on the same machine. Nothing phones home. This is a setup anyone in the room could reproduce this afternoon.</aside>
+    </section>
+
+    <!-- 9 TRACES (live demo springboard) -->
+    <section class="slide">
+      <div class="kicker">Live Demo &middot; Traces</div>
+      <h2>One request, every step</h2>
+      <div class="rule" style="margin-bottom:8px"></div>
+      <div class="shot">
+        <img src="img/trace.png" alt="Langfuse trace tree for the operations agent">
+        <div class="livecue">&#9654; Live now &mdash; prompt, completion, tokens &amp; cost, per call</div>
+      </div>
+      <aside class="notes">[Demo ~8:30] Leave the slides here and drive the app. Ask the operations agent to quote a route and schedule a pickup, then open the trace in Langfuse: the tree shows the root, the LLM generations, and each tool call &mdash; with the real prompt, completion, token counts, and cost on every call (that's the one-line cost mention: it just falls out of the token tags). Expand a node, toggle Tree / Timeline / Graph. This is "being in control of what it's doing."</aside>
+    </section>
+
+    <!-- 10 SESSIONS (live demo springboard) -->
+    <section class="slide">
+      <div class="kicker">Live Demo &middot; Sessions</div>
+      <h2>The whole conversation</h2>
+      <div class="rule" style="margin-bottom:8px"></div>
+      <div class="shot">
+        <img src="img/sessions.png" alt="Langfuse sessions list">
+        <div class="livecue">&#9654; Live now &mdash; every turn, grouped</div>
+      </div>
+      <aside class="notes">[Demo] Back to Langfuse: Sessions. A session is one conversation &mdash; all its turns grouped, with duration and trace count. Click one to replay the back-and-forth in order. The point: a single trace tells you about one request; a session tells you about the whole user interaction, which is where multi-turn bugs actually live.</aside>
+    </section>
+
+    <!-- 11 USERS (live demo springboard) -->
+    <section class="slide">
+      <div class="kicker">Live Demo &middot; Users</div>
+      <h2>Who it happened to</h2>
+      <div class="rule" style="margin-bottom:8px"></div>
+      <div class="shot">
+        <img src="img/users.png" alt="Langfuse users view">
+        <div class="livecue">&#9654; Live now &mdash; traces, tokens &amp; cost per user</div>
+      </div>
+      <aside class="notes">[Demo] Users view: every trace is linked to a user, so you can see one person's whole history &mdash; their traces, tokens, and cost. In the demo it's a single "demo-user", but the mechanism is what matters: when a complaint comes in, you find that user and see exactly what they experienced. That closes the loop between "someone's unhappy" and "here's the trace that caused it."</aside>
+    </section>
+
+    <!-- 12 FOLLOW-UP RECAP -->
+    <section class="slide">
+      <div class="kicker">Next Time</div>
+      <h2>Climbing the rest of the chain</h2>
+      <div class="rule"></div>
+      <div class="grid c3">
+        <div class="card"><div class="ic">&#128276;</div><h3>Alerts</h3><p>Told the moment it breaks.</p></div>
+        <div class="card"><div class="ic">&#128202;</div><h3>Evaluation &amp; feedback</h3><p>Score answers against datasets.</p></div>
+        <div class="card"><div class="ic">&#128221;</div><h3>Prompt management</h3><p>Versioned, measured rollouts.</p></div>
+      </div>
+      <aside class="notes">[~ after demo] Recap the follow-up so people know where this goes. Alerts (be told, don't go looking), evaluation with user feedback (quality as a measured trend, regressions caught pre-prod), and prompt management (change deliberately, measure the result). Stress the through-line: none of this works without the traces, sessions, and users we set up today &mdash; that's why we started here.</aside>
+    </section>
+
+    <!-- 13 CODE WIRING (pseudocode, language-agnostic) -->
+    <section class="slide">
+      <div class="kicker">How It's Wired</div>
+      <h2>The whole integration, in pseudocode</h2>
+      <div class="rule" style="margin-bottom:10px"></div>
+<pre><span class="cmt"># once, at startup &mdash; point OpenTelemetry at Langfuse</span>
+telemetry.<span class="fn">export_to</span>(<span class="str">LANGFUSE_OTLP_URL</span>, auth = keys)
+
+<span class="cmt"># per call &mdash; one span carries the request and the response</span>
+<span class="kw">with</span> tracer.<span class="fn">start</span>(<span class="str">"chat"</span>) <span class="kw">as</span> span:
+    span.<span class="fn">setTag</span>(<span class="str">"gen_ai.request.model"</span>, model)
+    span.<span class="fn">setTag</span>(<span class="str">"session.id"</span>, sessionId)
+    span.<span class="fn">setTag</span>(<span class="str">"user.id"</span>, userId)
+    answer = llm.<span class="fn">complete</span>(prompt)
+    span.<span class="fn">setTag</span>(<span class="str">"gen_ai.usage"</span>, answer.tokens)</pre>
+      <aside class="notes">[~ brief] Deliberately pseudocode, not C# &mdash; the concept is the point, not the syntax. Two moves: (1) at startup, aim OpenTelemetry at Langfuse's OTLP endpoint; (2) wrap each model call in a span carrying the standard gen_ai.* attributes. That's the entire integration. Because it's just OpenTelemetry, the same span can go to Langfuse, LangSmith, Datadog &mdash; swap by config, never touch this code.</aside>
+    </section>
+
+    <!-- 14 VENDORS / NOT LOCKED IN -->
+    <section class="slide">
+      <div class="kicker">You're Not Locked In</div>
+      <h2>One standard, many vendors</h2>
+      <div class="rule"></div>
+      <div class="grid c3">
+        <div class="card"><h3>Langfuse <span class="tag">Open Source</span></h3></div>
+        <div class="card"><h3>Arize Phoenix <span class="tag">Open Source</span></h3></div>
+        <div class="card"><h3>Helicone <span class="tag">Open Source</span></h3></div>
+        <div class="card"><h3>LangSmith</h3></div>
+        <div class="card"><h3>Datadog</h3></div>
+        <div class="card"><h3>W&amp;B Weave</h3></div>
+      </div>
+      <p style="margin-top:18px"><b>Because it's OpenTelemetry underneath,</b> <span class="sub">switching backend is a config change &mdash; not a rewrite.</span></p>
+      <aside class="notes">[~ brief] Reassure on commitment risk: picking Langfuse today doesn't trap you. They all sit on OpenTelemetry, so the same instrumentation feeds any of them &mdash; Langfuse (what we used), LangSmith, Phoenix, or even the Grafana/Datadog you already run. The choice is reversible, which makes starting easy.</aside>
+    </section>
+
+    <!-- 15 QR / TRY IT -->
+    <section class="slide">
+      <div class="kicker">Try It Yourself</div>
+      <h2>Grab the project</h2>
+      <div class="rule"></div>
+      <div class="qrwrap">
+        <div class="qrbox"><img src="img/qr.png" alt="GitHub repository QR code"></div>
+        <div>
+          <p style="font-size:26px"><b>The whole demo is open source.</b></p>
+          <p class="sub" style="margin-top:12px;font-size:21px">Meridian Logistics + self-hosted Langfuse,<br>cloned and running in minutes.</p>
+          <div class="links" style="margin-top:22px"><span>github.com/joaomello-defensepoint/meridian-logistics</span></div>
+          <div class="thanks" style="font-size:30px;margin-top:30px">So &mdash; do you know what your AI is doing?</div>
+        </div>
+      </div>
+      <aside class="notes">[~29:30] Close by calling back to the opening question &mdash; now they know the answer and how to get it. The QR points at the repo so anyone can run the exact demo. (Placeholder QR until the repo URL is set.) Thank them; leave the code on screen for photos.</aside>
+    </section>
+
+  </div>
+</div>
+
+<div id="counter">1 / 15</div>
+<div id="hint">← → navigate · f fullscreen · n notes</div>
+<div id="notes"><div class="nh">Presenter Notes</div><div class="nbody"></div></div>
+
+<script>
+(function(){
+  "use strict";
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var total = slides.length;
+  var scaler = document.getElementById("scaler");
+  var counter = document.getElementById("counter");
+  var progress = document.getElementById("progress");
+  var notesBox = document.getElementById("notes");
+  var notesBody = notesBox.querySelector(".nbody");
+  var hint = document.getElementById("hint");
+  var BASE_W = 1280, BASE_H = 720;
+  var current = 0;
+  var frag = 0;        // fragments revealed on the current slide
+  var notesOn = false;
+
+  function clamp(i){ return Math.max(0, Math.min(total-1, i)); }
+  function fragsOf(i){ return slides[i].querySelectorAll(".fragment"); }
+
+  function applyFragments(){
+    var f = fragsOf(current);
+    for (var i=0;i<f.length;i++){ f[i].classList.toggle("shown", i < frag); }
+  }
+
+  function render(){
+    slides.forEach(function(s,i){ s.classList.toggle("active", i===current); });
+    applyFragments();
+    counter.textContent = (current+1) + " / " + total;
+    progress.style.width = ((current)/(total-1)*100) + "%";
+    if (notesOn) updateNotes();
+    if (("#/"+(current+1)) !== location.hash) {
+      history.replaceState(null,"","#/"+(current+1));
+    }
+  }
+
+  // land on slide i; mode "start" = no fragments shown, otherwise reveal all
+  function land(i, mode){
+    current = clamp(i);
+    frag = (mode === "start") ? 0 : fragsOf(current).length;
+    render();
+  }
+  function go(i){ land(i, "all"); }        // deep jumps show the finished slide
+  function next(){
+    if (frag < fragsOf(current).length){ frag++; applyFragments(); return; }
+    if (current < total-1) land(current+1, "start");
+  }
+  function prev(){
+    if (frag > 0){ frag--; applyFragments(); return; }
+    if (current > 0) land(current-1, "all");
+  }
+
+  function updateNotes(){
+    var aside = slides[current].querySelector("aside.notes");
+    notesBody.textContent = aside ? aside.textContent : "(no notes)";
+  }
+  function toggleNotes(){
+    notesOn = !notesOn;
+    notesBox.classList.toggle("show", notesOn);
+    if (notesOn) updateNotes();
+  }
+
+  function toggleFs(){
+    if (!document.fullscreenElement) {
+      (document.documentElement.requestFullscreen||function(){}).call(document.documentElement);
+    } else {
+      (document.exitFullscreen||function(){}).call(document);
+    }
+  }
+
+  function fit(){
+    var scale = Math.min(window.innerWidth/BASE_W, window.innerHeight/BASE_H);
+    scaler.style.transform = "scale(" + scale + ")";
+  }
+
+  function fromHash(){
+    var m = /^#\/(\d+)$/.exec(location.hash);
+    if (m){ go(parseInt(m[1],10)-1); } else { render(); }
+  }
+
+  document.addEventListener("keydown", function(e){
+    switch(e.key){
+      case "ArrowRight": case "PageDown": case " ": case "Spacebar":
+        e.preventDefault(); next(); break;
+      case "ArrowLeft": case "PageUp":
+        e.preventDefault(); prev(); break;
+      case "Home": e.preventDefault(); go(0); break;
+      case "End": e.preventDefault(); go(total-1); break;
+      case "f": case "F": toggleFs(); break;
+      case "n": case "N": toggleNotes(); break;
+    }
+  });
+
+  document.getElementById("stage").addEventListener("click", function(e){
+    var x = e.clientX / window.innerWidth;
+    if (x > 0.66) next();
+    else if (x < 0.34) prev();
+  });
+
+  window.addEventListener("resize", fit);
+  window.addEventListener("hashchange", fromHash);
+
+  fit();
+  fromHash();
+
+  setTimeout(function(){ hint.style.opacity = "0"; }, 4500);
+})();
+</script>
+</body>
+</html>
